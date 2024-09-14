@@ -1,1 +1,2 @@
-# PML
+# Probabilistic Machine Learning
+Annalisa Paladino
