@@ -1,2 +1,2 @@
-# Probabilistic Machine Learning
+# Probabilistic Machine Learning - UniTS 2024
 Annalisa Paladino
