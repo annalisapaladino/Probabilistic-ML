@@ -1,7 +1,5 @@
-# Probabilistic Machine Learning - UniTS 2024
-
 # 🧠 Variational Autoencoder for Facial Image Generation with Bayesian Optimization
-
+Annalisa Paladino, Probabilistic Machine Learning - UniTS 2024
 > An interpretable deep learning project for facial image generation and hyperparameter tuning using Bayesian methods.
 
 ## 📘 Project Overview
