@@ -93,7 +93,7 @@ This project shows that:
 ## 👩‍💻 Author
 
 **Annalisa Paladino**  
-_MSc in Probabilistic Machine Learning_
+_MSc in Data Science and Artificial Intelligence_
 
 ---
 
