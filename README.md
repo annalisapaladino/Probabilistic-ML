@@ -28,45 +28,54 @@ The implemented model is a convolutional Variational Autoencoder. It consists of
 - a fully connected decoder;
 - a sequence of transposed convolutions that reconstruct the image.
 
-Given an input image \(x\), the encoder estimates the parameters of a Gaussian latent distribution:
+Given an input image $x$, the encoder estimates the parameters of a Gaussian latent distribution:
 
-\[
-q_\phi(z \mid x) = \mathcal{N}\left(\mu(x), \operatorname{diag}(\sigma^2(x))\right).
-\]
+
+$$
+q_{\phi}(z \mid x) = \mathcal{N}\left(\mu(x), \mathrm{diag}(\sigma^2(x))\right).
+
+$$
 
 A latent vector is sampled using the reparameterization trick:
 
-\[
+
+$$
 z = \mu + \sigma \odot \epsilon,
 \qquad
 \epsilon \sim \mathcal{N}(0, I).
-\]
 
-The decoder then maps \(z\) back to the image space.
+$$
+
+The decoder then maps $z$ back to the image space.
 
 ### Training Objective
 
 The model is trained by minimizing the sum of two terms:
 
-\[
+
+$$
 \mathcal{L}
 =
 \mathcal{L}_{\mathrm{reconstruction}}
 +
 \mathcal{L}_{\mathrm{KL}}.
-\]
+
+$$
 
 The reconstruction term is the summed mean squared error between the input and reconstructed images:
 
-\[
+
+$$
 \mathcal{L}_{\mathrm{reconstruction}}
 =
 \lVert x - \hat{x} \rVert_2^2.
-\]
+
+$$
 
 The Kullback-Leibler divergence regularizes the approximate posterior toward a standard normal prior:
 
-\[
+
+$$
 \mathcal{L}_{\mathrm{KL}}
 =
 -\frac{1}{2}
@@ -74,13 +83,14 @@ The Kullback-Leibler divergence regularizes the approximate posterior toward a s
 \left(
 1 + \log \sigma^2 - \mu^2 - \sigma^2
 \right).
-\]
+
+$$
 
 This combination encourages the model to reconstruct the images accurately while learning a continuous and structured latent space.
 
 ## Model Architecture
 
-Images are resized to \(128 \times 128\) and represented as RGB tensors.
+Images are resized to $128 \times 128$ and represented as RGB tensors.
 
 ### Encoder
 
@@ -105,7 +115,7 @@ Each intermediate decoder block contains:
 - a `LeakyReLU` activation;
 - batch normalization.
 
-The final layer uses a sigmoid activation, producing pixel values in the interval \([0,1]\).
+The final layer uses a sigmoid activation, producing pixel values in the interval $[0,1]$.
 
 ### Tunable Architectural Parameters
 
@@ -154,11 +164,11 @@ After hyperparameter optimization, the selected model is retrained with the foll
 
 | Setting | Value |
 |---|---:|
-| Image size | \(128 \times 128\) |
+| Image size | $128 \times 128$ |
 | Batch size | 32 |
 | Epochs | 400 |
-| Initial learning rate | \(10^{-3}\) |
-| Final learning rate | \(5 \times 10^{-7}\) |
+| Initial learning rate | $10^{-3}$ |
+| Final learning rate | $5 \times 10^{-7}$ |
 | Optimizer | Adam |
 | Gradient clipping norm | 1.0 |
 | Dropout rate | 0.05 |
@@ -207,7 +217,7 @@ Probabilistic-ML-main/
 The custom `FacesDataset` class:
 
 1. opens each image as RGB;
-2. resizes it to \(128 \times 128\);
+2. resizes it to $128 \times 128$;
 3. converts it to a PyTorch tensor;
 4. returns the same image as both input and reconstruction target.
 
@@ -225,9 +235,11 @@ The notebook demonstrates three main outputs.
 
 Random latent vectors are sampled from a standard normal distribution:
 
-\[
+
+$$
 z \sim \mathcal{N}(0,I).
-\]
+
+$$
 
 The decoder transforms these vectors into synthetic LEGO-style face images. This experiment checks whether the regularized latent space can generate plausible samples without starting from a real input image.
 
@@ -237,15 +249,17 @@ Although the notebook primarily visualizes generated samples, the VAE training o
 
 ### Latent-Space Interpolation
 
-Two dataset images are encoded into latent vectors \(z_1\) and \(z_2\). Intermediate vectors are produced through linear interpolation:
+Two dataset images are encoded into latent vectors $z_1$ and $z_2$. Intermediate vectors are produced through linear interpolation:
 
-\[
+
+$$
 z(\alpha)
 =
 \alpha z_1 + (1-\alpha)z_2,
 \qquad
 \alpha \in [0,1].
-\]
+
+$$
 
 Decoding these intermediate points produces a gradual transition between the two faces. The notebook creates both:
 
@@ -455,5 +469,3 @@ Potential improvements include:
 - comparing linear interpolation with spherical interpolation;
 - testing the architecture on larger face datasets;
 - reorganizing the code as an installable Python package.
-
-
