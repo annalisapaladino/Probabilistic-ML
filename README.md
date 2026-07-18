@@ -1,127 +1,459 @@
-# 🧠 Variational Autoencoder for Facial Image Generation with Bayesian Optimization
-Annalisa Paladino, Probabilistic Machine Learning - UniTS 2024
-> An interpretable deep learning project for facial image generation and hyperparameter tuning using Bayesian methods.
+# Variational Autoencoder with Bayesian Hyperparameter Optimization
 
-## 📘 Project Overview
+This repository contains a probabilistic machine learning project focused on image generation with a convolutional Variational Autoencoder (VAE). The model is trained on a dataset of LEGO-style face images and its main architectural hyperparameters are selected through Bayesian optimization.
 
-This project implements a **Variational Autoencoder (VAE)** to generate high-quality facial images from a dataset of Lego-style faces. The model is trained and optimized using **Bayesian Optimization**, which enables automatic tuning of hyperparameters to enhance performance and image fidelity.
+The project was developed by **Annalisa Paladino** for the **Probabilistic Machine Learning** course at the University of Trieste in 2024.
 
-### 🔍 Goals
+## Project Overview
 
-- Compress and reconstruct facial images via VAE
-- Learn a smooth and structured latent space
-- Tune the VAE’s hyperparameters using Bayesian Optimization
-- Enable applications such as facial interpolation and morphing
+The project investigates three connected tasks:
 
----
+1. learning a compact probabilistic representation of face images;
+2. reconstructing and generating images through a convolutional VAE;
+3. selecting the hidden and latent dimensions through Bayesian optimization.
 
-## 🧱 Architecture
+After training, the learned latent space is also used for interpolation between two images, producing a continuous face-morphing sequence.
 
-### Variational Autoencoder (VAE)
+The complete experimental workflow is contained in [`VAE.ipynb`](VAE.ipynb), while the model architecture and reusable training utilities are separated into [`models.py`](models.py) and [`utils.py`](utils.py).
 
-The VAE architecture consists of:
+## Main Components
 
-- **Encoder**: Maps input images to a latent space distribution (mean and log-variance)
-- **Reparametrization trick**: Allows backpropagation through the stochastic latent variables
-- **Decoder**: Reconstructs the original image from a sampled latent vector
+### Variational Autoencoder
 
-The objective is to minimize the combined **Reconstruction Loss (MSE)** and **Kullback-Leibler Divergence (KLD)**:
+The implemented model is a convolutional Variational Autoencoder. It consists of:
 
+- a convolutional encoder;
+- two fully connected branches that estimate the latent mean and log-variance;
+- the reparameterization trick;
+- a fully connected decoder;
+- a sequence of transposed convolutions that reconstruct the image.
 
----
+Given an input image \(x\), the encoder estimates the parameters of a Gaussian latent distribution:
 
-## 🔧 Hyperparameter Optimization
+\[
+q_\phi(z \mid x) = \mathcal{N}\left(\mu(x), \operatorname{diag}(\sigma^2(x))\right).
+\]
 
-### Bayesian Optimization Framework
+A latent vector is sampled using the reparameterization trick:
 
-- **Search space**: Discrete and continuous hyperparameters (hidden layer size, latent dimension)
-- **Objective**: Minimize validation loss over the VAE model
-- **Surrogate model**: Gaussian Process (GP) with Matern kernel
-- **Acquisition function**: Expected Improvement (EI)
+\[
+z = \mu + \sigma \odot \epsilon,
+\qquad
+\epsilon \sim \mathcal{N}(0, I).
+\]
 
-#### Key Features
+The decoder then maps \(z\) back to the image space.
 
-- Black-box optimization
-- Global search for optimal settings
-- Computationally efficient compared to grid/random search
+### Training Objective
 
----
+The model is trained by minimizing the sum of two terms:
 
-## 🧪 Experimental Setup
+\[
+\mathcal{L}
+=
+\mathcal{L}_{\mathrm{reconstruction}}
++
+\mathcal{L}_{\mathrm{KL}}.
+\]
 
-- **Dataset**: Lego facial images
-- **Optimizer**: Adam
-- **Initial LR**: 1e-3 → **Final LR**: 5e-7 (with scheduling)
-- **Epochs**: 400
-- **Batch Size**: 64
-- **Gradient Clipping**: 1.0
+The reconstruction term is the summed mean squared error between the input and reconstructed images:
 
-### Optimized Hyperparameters
+\[
+\mathcal{L}_{\mathrm{reconstruction}}
+=
+\lVert x - \hat{x} \rVert_2^2.
+\]
 
-| Parameter          | Range Explored | Optimal Value (Example) |
-|--------------------|----------------|--------------------------|
-| Hidden Dimension   | 128 – 2048     | 512                      |
-| Latent Dimension   | 8 – 64         | 32                       |
+The Kullback-Leibler divergence regularizes the approximate posterior toward a standard normal prior:
 
----
+\[
+\mathcal{L}_{\mathrm{KL}}
+=
+-\frac{1}{2}
+\sum
+\left(
+1 + \log \sigma^2 - \mu^2 - \sigma^2
+\right).
+\]
 
-## 🖼️ Results
+This combination encourages the model to reconstruct the images accurately while learning a continuous and structured latent space.
 
-- **Generated Images**: High-quality outputs that resemble training inputs
-- **Latent Interpolation**: Smooth morphing between two facial images
-- **Loss Curves**: Demonstrate learning stability and optimization efficacy
+## Model Architecture
 
----
+Images are resized to \(128 \times 128\) and represented as RGB tensors.
 
-## 📈 Visualizations
+### Encoder
 
-- Evolution of hyperparameters during optimization
-- Visual comparison of original vs reconstructed images
-- Latent space traversals for image morphing
+The encoder uses a sequence of convolutional blocks. Each block contains:
 
----
+- a two-dimensional convolution;
+- a `Tanh` activation;
+- batch normalization.
 
-## 📚 Conclusion
+The convolutional feature map is flattened and passed through a fully connected layer. Two separate networks then produce:
 
-This project shows that:
-- VAE models are effective at encoding and generating structured facial data
-- Bayesian Optimization automates hyperparameter tuning efficiently
-- The model generalizes well and supports continuous transformations in the latent space
+- the latent mean `mu`;
+- the latent log-variance `logvar`.
 
----
+### Decoder
 
-## 👩‍💻 Author
+The decoder first expands the sampled latent vector with fully connected layers. It then reshapes the representation and applies a sequence of transposed-convolution blocks.
 
-**Annalisa Paladino**  
-_MSc in Data Science and Artificial Intelligence_
+Each intermediate decoder block contains:
 
----
+- a transposed convolution;
+- a `LeakyReLU` activation;
+- batch normalization.
 
-## 🛠️ Requirements
+The final layer uses a sigmoid activation, producing pixel values in the interval \([0,1]\).
 
-- Python 3.8+
-- `torch`, `numpy`, `matplotlib`
-- `scikit-learn`, `GPyOpt` or `BoTorch` (for Bayesian Optimization)
+### Tunable Architectural Parameters
 
----
+The model exposes three principal parameters:
 
-## 📂 Repository Structure
+| Parameter | Description |
+|---|---|
+| `latent_dim` | Dimension of the probabilistic latent representation |
+| `hidden_dim` | Width of the fully connected encoder and decoder representation |
+| `dropout_rate` | Dropout probability applied before the encoder's hidden layer |
 
-├── data/ # Dataset of Lego facial images
-├── models/ # VAE architecture and training script
-├── optimization/ # Bayesian optimization routines
-├── notebooks/ # Jupyter notebooks for experiments
-├── results/ # Generated samples and loss plots
-└── README.md # Project documentation
+## Bayesian Hyperparameter Optimization
 
+Training a VAE requires architectural choices that can have a substantial effect on reconstruction quality and latent-space structure. This project uses Bayesian optimization to search for suitable values of:
 
----
+- `hidden_dim`;
+- `latent_dim`.
 
-## 🚀 Future Work
+The optimization uses the `bayesian-optimization` Python package. For each proposed configuration, a VAE is trained for 50 epochs and evaluated on the validation set. The objective returned to the optimizer is the negative average validation loss over the final three epochs, because the optimizer maximizes its objective.
 
-- Extend to other facial datasets (e.g., CelebA)
-- Compare with other generative models (GANs, Diffusion Models)
-- Incorporate disentangled representations
+The search space used in the notebook is:
 
+| Hyperparameter | Search interval |
+|---|---:|
+| Hidden dimension | 128 to 2048 |
+| Latent dimension | 8 to 64 |
+
+The optimization procedure performs:
+
+- 10 initial random evaluations;
+- 90 Bayesian optimization iterations.
+
+According to the stored notebook output, the best configuration found was approximately:
+
+| Parameter | Selected value |
+|---|---:|
+| Hidden dimension | 426 |
+| Latent dimension | 18 |
+| Optimization target | -1000.3 |
+
+Because model training is stochastic and depends on hardware, software versions and dataset handling, rerunning the notebook may produce different values.
+
+## Final Training Configuration
+
+After hyperparameter optimization, the selected model is retrained with the following settings:
+
+| Setting | Value |
+|---|---:|
+| Image size | \(128 \times 128\) |
+| Batch size | 32 |
+| Epochs | 400 |
+| Initial learning rate | \(10^{-3}\) |
+| Final learning rate | \(5 \times 10^{-7}\) |
+| Optimizer | Adam |
+| Gradient clipping norm | 1.0 |
+| Dropout rate | 0.05 |
+| Random seed | 42 |
+
+A linear learning-rate scheduler progressively reduces the learning rate over the complete training run.
+
+The final model shown in the notebook contains approximately **10.44 million trainable parameters**. The stored run reports:
+
+| Metric | Final value |
+|---|---:|
+| Training loss | 429.3 |
+| Validation loss | 1108.3 |
+
+These values are losses per sample, calculated from a summed pixel-wise MSE and KL-divergence term. They should therefore not be interpreted as normalized per-pixel errors.
+
+## Dataset
+
+The repository includes [`dataset.zip`](dataset.zip), containing 1,111 LEGO-style face images in JPEG format.
+
+The archive currently stores the images inside the directory:
+
+```text
+easy_dataset/
+```
+
+The notebook, however, expects the images to be available inside:
+
+```text
+dataset/
+```
+
+Before running the notebook, extract the archive and rename or move the extracted folder so that the final structure is:
+
+```text
+Probabilistic-ML-main/
+├── dataset/
+│   ├── 3626ap01.jpg
+│   ├── 3626apb03.jpg
+│   └── ...
+├── VAE.ipynb
+├── models.py
+└── utils.py
+```
+
+The custom `FacesDataset` class:
+
+1. opens each image as RGB;
+2. resizes it to \(128 \times 128\);
+3. converts it to a PyTorch tensor;
+4. returns the same image as both input and reconstruction target.
+
+The notebook divides the dataset into training, validation and test subsets. The effective proportions are:
+
+- 64% training;
+- 16% validation;
+- 20% test.
+
+## Generated Outputs
+
+The notebook demonstrates three main outputs.
+
+### Random Sampling
+
+Random latent vectors are sampled from a standard normal distribution:
+
+\[
+z \sim \mathcal{N}(0,I).
+\]
+
+The decoder transforms these vectors into synthetic LEGO-style face images. This experiment checks whether the regularized latent space can generate plausible samples without starting from a real input image.
+
+### Image Reconstruction
+
+Although the notebook primarily visualizes generated samples, the VAE training objective explicitly learns to reconstruct every input image. Reconstruction quality is monitored through the training and validation losses.
+
+### Latent-Space Interpolation
+
+Two dataset images are encoded into latent vectors \(z_1\) and \(z_2\). Intermediate vectors are produced through linear interpolation:
+
+\[
+z(\alpha)
+=
+\alpha z_1 + (1-\alpha)z_2,
+\qquad
+\alpha \in [0,1].
+\]
+
+Decoding these intermediate points produces a gradual transition between the two faces. The notebook creates both:
+
+- a static sequence of interpolated images;
+- an animated file named `interpolated_images.gif`.
+
+The interpolation experiment provides a qualitative indication that the model has learned a reasonably continuous latent representation.
+
+## Repository Structure
+
+```text
+Probabilistic-ML-main/
+├── README.md
+├── VAE.ipynb
+├── models.py
+├── utils.py
+├── dataset.zip
+└── slides.pdf
+```
+
+### File Descriptions
+
+| File | Purpose |
+|---|---|
+| `VAE.ipynb` | Complete experimental workflow: loading, tuning, training, sampling and interpolation |
+| `models.py` | Convolutional VAE architecture |
+| `utils.py` | Dataset class, training loop, tuning objective, encoding and interpolation utilities |
+| `dataset.zip` | Compressed LEGO-style face dataset |
+| `slides.pdf` | Presentation associated with the project |
+| `README.md` | Project documentation |
+
+## Installation
+
+Python 3.9 or later is recommended.
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv .venv
+```
+
+On Linux or macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+On Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+Install the required dependencies:
+
+```bash
+pip install torch torchvision numpy pandas matplotlib seaborn scikit-learn pillow tqdm bayesian-optimization tabulate jupyter
+```
+
+A CUDA-compatible GPU is strongly recommended for the full Bayesian search and the 400-epoch final training run. The code also supports CPU execution, but the complete workflow will be considerably slower.
+
+## Running the Project
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd Probabilistic-ML-main
+```
+
+Extract the dataset:
+
+```bash
+unzip dataset.zip
+mv easy_dataset dataset
+```
+
+On systems where `unzip` is unavailable, extract the archive manually and rename the resulting `easy_dataset` folder to `dataset`.
+
+Start Jupyter:
+
+```bash
+jupyter notebook
+```
+
+Open:
+
+```text
+VAE.ipynb
+```
+
+Run the notebook cells in order.
+
+## Reusing the Model
+
+A model can be instantiated directly from `models.py`:
+
+```python
+import torch
+from models import VAE
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+model = VAE(
+    latent_dim=18,
+    hidden_dim=426,
+    dropout_rate=0.05,
+).to(device)
+```
+
+To train it, create the required data loaders and call:
+
+```python
+from utils import train_model
+
+train_losses, val_losses, trained_model = train_model(
+    train_loader=train_loader,
+    val_loader=val_loader,
+    model=model,
+    n_epochs=400,
+    initial_lr=1e-3,
+    end_lr=5e-7,
+    clip_grad_value=1.0,
+    device=device,
+)
+```
+
+To encode an image and interpolate between two latent representations:
+
+```python
+from utils import encode_image, interpolate
+
+z1 = encode_image(image1, trained_model, device)
+z2 = encode_image(image2, trained_model, device)
+
+frames = interpolate(
+    n_points=20,
+    z1=z1,
+    z2=z2,
+    model=trained_model,
+    device=device,
+)
+```
+
+## Reproducibility
+
+The notebook sets the NumPy and PyTorch random seeds to 42. This improves reproducibility, but it does not guarantee identical results across all environments.
+
+Exact reproducibility may still be affected by:
+
+- CUDA and cuDNN implementations;
+- GPU model;
+- PyTorch version;
+- parallel data-processing behavior;
+- stochastic latent sampling;
+- Bayesian optimization package version.
+
+The repository does not currently pin package versions. For fully reproducible experiments, a versioned `requirements.txt` or environment file should be added.
+
+## Current Limitations
+
+The repository is suitable as an academic experiment, but several aspects should be considered before treating it as a production-ready package.
+
+### Computational Cost
+
+The Bayesian search trains 100 separate models for 50 epochs each. This is computationally expensive, especially without a GPU.
+
+### No Saved Checkpoint
+
+The trained model is not stored in the repository. Running the sampling and interpolation sections requires retraining the model or adding code to load a saved checkpoint.
+
+### Limited Evaluation
+
+The project reports training and validation loss and provides qualitative generated samples. It does not include stronger generative-model metrics such as:
+
+- Fréchet Inception Distance;
+- Kernel Inception Distance;
+- reconstruction error on the held-out test set;
+- latent-space disentanglement measures.
+
+### Dataset Path Requires Manual Adjustment
+
+The directory name inside `dataset.zip` does not match the path expected by the notebook. The extracted directory must be renamed before execution.
+
+### Hyperparameter Search Scope
+
+Only the hidden dimension and latent dimension are optimized. Other influential parameters remain fixed, including:
+
+- learning rate;
+- dropout rate;
+- batch size;
+- KL-divergence weighting;
+- convolutional architecture.
+
+## Possible Extensions
+
+Potential improvements include:
+
+- saving and loading model checkpoints;
+- adding a pinned `requirements.txt`;
+- reporting test-set performance;
+- visualizing original and reconstructed images side by side;
+- introducing a weighted or annealed KL term;
+- comparing the VAE with a beta-VAE;
+- extending Bayesian optimization to training parameters;
+- evaluating the latent space with quantitative metrics;
+- comparing linear interpolation with spherical interpolation;
+- testing the architecture on larger face datasets;
+- reorganizing the code as an installable Python package.
 
 
