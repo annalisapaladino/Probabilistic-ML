@@ -28,69 +28,48 @@ The implemented model is a convolutional Variational Autoencoder. It consists of
 - a fully connected decoder;
 - a sequence of transposed convolutions that reconstruct the image.
 
-Given an input image $x$, the encoder estimates the parameters of a Gaussian latent distribution:
+Given an input image `x`, the encoder estimates the mean and variance of a Gaussian latent distribution:
 
+```text
+q_phi(z | x) = Normal(mean = mu(x), covariance = diag(sigma(x)^2))
+```
 
-$$
-q_{\phi}(z \mid x) = \mathcal{N}\left(\mu(x), \mathrm{diag}(\sigma^2(x))\right).
+A latent vector is sampled with the reparameterization trick:
 
-$$
+```text
+epsilon ~ Normal(0, I)
+z = mu + sigma * epsilon
+```
 
-A latent vector is sampled using the reparameterization trick:
-
-
-$$
-z = \mu + \sigma \odot \epsilon,
-\qquad
-\epsilon \sim \mathcal{N}(0, I).
-
-$$
-
-The decoder then maps $z$ back to the image space.
+The decoder then maps `z` back to the image space.
 
 ### Training Objective
 
 The model is trained by minimizing the sum of two terms:
 
+```text
+total_loss = reconstruction_loss + KL_divergence
+```
 
-$$
-\mathcal{L}
-=
-\mathcal{L}_{\mathrm{reconstruction}}
-+
-\mathcal{L}_{\mathrm{KL}}.
+The reconstruction term is the squared distance between the input image and its reconstruction:
 
-$$
-
-The reconstruction term is the summed mean squared error between the input and reconstructed images:
-
-
-$$
-\mathcal{L}_{\mathrm{reconstruction}}
-=
-\lVert x - \hat{x} \rVert_2^2.
-
-$$
+```text
+reconstruction_loss = sum((x - x_reconstructed)^2)
+```
 
 The Kullback-Leibler divergence regularizes the approximate posterior toward a standard normal prior:
 
+```text
+KL_divergence = -0.5 * sum(1 + log_variance - mean^2 - exp(log_variance))
+```
 
-$$
-\mathcal{L}_{\mathrm{KL}}
-=
--\frac{1}{2}
-\sum
-\left(
-1 + \log \sigma^2 - \mu^2 - \sigma^2
-\right).
-
-$$
+In the implementation, `log_variance` is stored directly, so `exp(log_variance)` corresponds to the latent variance.
 
 This combination encourages the model to reconstruct the images accurately while learning a continuous and structured latent space.
 
 ## Model Architecture
 
-Images are resized to $128 \times 128$ and represented as RGB tensors.
+Images are resized to `128 x 128` and represented as RGB tensors.
 
 ### Encoder
 
@@ -115,7 +94,7 @@ Each intermediate decoder block contains:
 - a `LeakyReLU` activation;
 - batch normalization.
 
-The final layer uses a sigmoid activation, producing pixel values in the interval $[0,1]$.
+The final layer uses a sigmoid activation, producing pixel values in the interval `[0, 1]`.
 
 ### Tunable Architectural Parameters
 
@@ -164,11 +143,11 @@ After hyperparameter optimization, the selected model is retrained with the foll
 
 | Setting | Value |
 |---|---:|
-| Image size | $128 \times 128$ |
+| Image size | `128 x 128` |
 | Batch size | 32 |
 | Epochs | 400 |
-| Initial learning rate | $10^{-3}$ |
-| Final learning rate | $5 \times 10^{-7}$ |
+| Initial learning rate | `1e-3` |
+| Final learning rate | `5e-7` |
 | Optimizer | Adam |
 | Gradient clipping norm | 1.0 |
 | Dropout rate | 0.05 |
@@ -217,7 +196,7 @@ Probabilistic-ML-main/
 The custom `FacesDataset` class:
 
 1. opens each image as RGB;
-2. resizes it to $128 \times 128$;
+2. resizes it to `128 x 128`;
 3. converts it to a PyTorch tensor;
 4. returns the same image as both input and reconstruction target.
 
@@ -235,11 +214,9 @@ The notebook demonstrates three main outputs.
 
 Random latent vectors are sampled from a standard normal distribution:
 
-
-$$
-z \sim \mathcal{N}(0,I).
-
-$$
+```text
+z ~ Normal(0, I)
+```
 
 The decoder transforms these vectors into synthetic LEGO-style face images. This experiment checks whether the regularized latent space can generate plausible samples without starting from a real input image.
 
@@ -249,17 +226,12 @@ Although the notebook primarily visualizes generated samples, the VAE training o
 
 ### Latent-Space Interpolation
 
-Two dataset images are encoded into latent vectors $z_1$ and $z_2$. Intermediate vectors are produced through linear interpolation:
+Two dataset images are encoded into latent vectors `z1` and `z2`. Intermediate vectors are produced through linear interpolation:
 
-
-$$
-z(\alpha)
-=
-\alpha z_1 + (1-\alpha)z_2,
-\qquad
-\alpha \in [0,1].
-
-$$
+```text
+z(alpha) = alpha * z1 + (1 - alpha) * z2
+where 0 <= alpha <= 1
+```
 
 Decoding these intermediate points produces a gradual transition between the two faces. The notebook creates both:
 
